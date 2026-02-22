@@ -4,10 +4,10 @@
 # 
 # All credits for the plugin are for Nonolk, who is the origin plugin creator
 """
-<plugin key="tahomaIO" name="Somfy Tahoma or Connexoon plugin" author="MadPatrick" version="5.2.1" externallink="https://github.com/MadPatrick/somfy">
+<plugin key="tahomaIO" name="Somfy Tahoma or Connexoon plugin" author="MadPatrick" version="5.2.2" externallink="https://github.com/MadPatrick/somfy">
     <description>
         <br/><h2>Somfy Tahoma/Connexoon plugin</h2><br/>
-        Version: 5.2.1
+        Version: 5.2.2
         <br/>This plugin connects to the Tahoma or Connexoon box either via the web API or via local access.
         <br/>Various devices are supported (RollerShutter, LightSensor, Screen, Awning, Window, VenetianBlind, etc.).
         <br/>For new devices, please raise a ticket at the Github link above.
@@ -95,8 +95,8 @@
         <param field="Port" label="Portnumber Tahoma box" width="100px" required="true" default="8443"/>
         <param field="Mode1" label="Reset token" width="100px">            
             <options>
-                <option label="False" value="False" default="true"/>
-                <option label="True" value="True" />
+                <option label="False" value="false" default="true"/>
+                <option label="True" value="true" />
             </options>
         </param>
         <param field="Mode6" label="Debug logging" width="100px">
@@ -153,6 +153,7 @@ class BasePlugin:
         self.temp_delay = 10     # fallback defaults
         self.temp_time  = 60     # fallback defaults
         self.temp_interval_end = 0
+        self.connected = None  # None = onbekend, True = verbonden, False = fout
     
     def onStart(self):
         """
@@ -268,7 +269,13 @@ class BasePlugin:
                 logging.debug("found token in configuration: " + str(confToken))
                 self.tahoma.token = confToken
 
-        self.tahoma.register_listener()
+        try:
+            self.tahoma.register_listener()
+        except Exception as e:
+            Domoticz.Error(f"Connection failed during startup")
+            self.enabled = False   # of een flag zodat heartbeat later kan proberen
+            return False
+
 
         # --- DEVICES OPHALEN ---
         filtered_devices = self.tahoma.get_devices()
@@ -515,17 +522,50 @@ class BasePlugin:
 
         # Poll devices only when needed
         if self.runCounter <= 0 or self.heartbeat:
-            if self.local or (self.tahoma.logged_in and not self.tahoma.startup):
+
+            # --- eenvoudige connectie-check ---
+            try:
+                if self.local:
+                    self.tahoma.get_devices()  # lokale API
+                else:
+                    if not self.tahoma.logged_in:
+                        self.tahoma.tahoma_login(str(Parameters["Username"]), str(Parameters["Password"]))
+
+                # Verbinding is ok, log alleen bij statusverandering
+                if self.connected is False:
+                    Domoticz.Log("Connection restored")
+                self.connected = True
+
+            except Exception as e:
+                msg = str(e).lower()
+                if "no route to host" in msg:
+                    short = "No route to host"
+                elif "connection refused" in msg:
+                    short = "Connection refused"
+                elif "timed out" in msg:
+                    short = "Connection timed out"
+                else:
+                    short = "Connection failed"
+
+                if self.connected is True or self.connected is None:
+                    Domoticz.Error(f"{short} (box not reachable)")
+                self.connected = False
+
+            # --- devices pollen alleen als verbonden ---
+            if self.connected:
                 try:
                     filtered_devices = self.tahoma.get_devices()
                     self.update_devices_status(utils.filter_states(filtered_devices))
-                except Exception as exp:
-                    Domoticz.Error(f"Connection error: {exp}")
+                except Exception:
+                    # fouten tijdens device pollen negeren, we loggen connectie al
+                    pass
 
             self.runCounter = interval
             self.heartbeat = False
 
         return True
+
+
 
     def update_devices_status(self, Updated_devices):
         Domoticz.Debug("updating device status self.tahoma.startup = "+str(self.tahoma.startup)+" on num datasets: "+str(len(Updated_devices)))
