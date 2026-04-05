@@ -24,58 +24,58 @@
         <br/><font color="yellow">Please put in the additional parameters in the config.txt file in the plugin folder</font>
         <br/>
         <br/>
-<table border="1" cellpadding="4" cellspacing="0" width="50%">
+<table border="1" cellpadding="4" cellspacing="0">
     <tr>
-        <th align="left" style="background-color: red;">Parameter</th>
-        <th align="left" style="background-color: red;">Description</th>
+        <th>Parameter</th>
+        <th>Description</th>
     </tr>
     <tr>
-        <td><b>Username</b></td>
+        <td>Username</td>
         <td>Enter your Somfy login name </td>
     </tr>
     <tr>
-        <td><b>Password</b></td>
+        <td>Password</td>
         <td>Enter your Somfy Password</td>
     </tr>
     <tr>
-        <td><b>Refresh interval</b></td>
+        <td>Refresh interval</td>
         <td>How often must the devices be polled?
         <br/>Enter two numbers separated by a semicolon (;)
         <br/>The first number is for day refresh polling (in seconds), the second is for night refresh polling (in seconds).</td>
     </tr>
     <tr>
-        <td><b>Night Mode</b></td>
+        <td>Night Mode</td>
         <td>When should the night mode start?
         <br/>Enter two numbers separated by a semicolon (;).
         <br/>The first number is the time (in minutes) before sunrise, and the second number is the time after sunset.</td>
     </tr>
-        <tr>
-        <td><b>Temp polling interval</b></td>
+    <tr>
+        <td>Temp polling interval</td>
         <td>How often must the devices be polled?
         <br/>Enter two numbers separated by a semicolon (;)</td>
     </tr>
     <tr>
-        <td><b>Connection</b></td>
+        <td>Connection</td>
         <td>Choose how to interact with the Somfy/Tahoma/Connexoon box:
         <br/>Web API: via Somfy web server (requires continuous internet access)
         <br/>Local API: connect directly to the box (default)
         <br/>Somfy is depreciating the Web access, so it is better to use the local API</td>
     </tr>
     <tr>
-        <td><b>Address</b></td>
+        <td>Address</td>
         <td>Gateway PIN of the Portnumber Tahoma box
         <br/>Don't forget to set your DNS setting with you IP linked to the PIN number </td>
     </tr>
     <tr>
-        <td><b>Port</b></td>
+        <td>Port</td>
         <td>Portnumber of the Tahoma box (8443)</td>
     </tr>
     <tr>
-        <td><b>Reset token</b></td>
+        <td>Reset token</td>
         <td>Set to True to request a new token. Can be used when you get access denied</td>
     </tr>
     <tr>
-        <td><b>Debug logging</b></td>
+        <td>Debug logging</td>
         <td>Set to TRUE to enable debug logging for troubleshooting</td>
     </tr>
     </table>
