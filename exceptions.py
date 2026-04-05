@@ -38,4 +38,10 @@ class NoListenerFailure(TahomaException):
     def __init__(self):
         self.message = "Trying to fetch events without listener registered"
         super().__init__(self.message)
+
+class AuthenticationFailure(TahomaException):
+    """401 Unauthorized – token or credentials rejected by the local API."""
+    def __init__(self, action=""):
+        self.message = "Authentication failed" + (f" during {action}" if action else "")
+        super().__init__(self.message)
     

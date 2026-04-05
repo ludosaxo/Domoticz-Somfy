@@ -115,7 +115,7 @@ def handle_response(response, action):
         raise exceptions.TahomaException("failed request during " + action + ", check url or body: " + str(response.status_code))
     elif response.status_code == 401:
         logging.error("status code " + str(response.status_code) + " authorisation failed, check credentials")
-        raise exceptions.TahomaException("failed request during " + action + ", check credentials: " + str(response.status_code))
+        raise exceptions.AuthenticationFailure(action)
     elif response.status_code == 404:
         logging.error("status code " + str(response.status_code) + " server not found")
         raise exceptions.TahomaException("failed request during " + action + ", server not found: " + str(response.status_code))

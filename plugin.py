@@ -291,7 +291,29 @@ class BasePlugin:
             return False
 
         # --- DEVICES OPHALEN ---
-        filtered_devices = self.tahoma.get_devices()
+        try:
+            filtered_devices = self.tahoma.get_devices()
+        except exceptions.AuthenticationFailure:
+            if self.local:
+                Domoticz.Log("Stored token rejected (401), regenerating token...")
+                try:
+                    self.tahoma.generate_token(pin)
+                    self.tahoma.activate_token(pin, self.tahoma.token)
+                    setConfigItem('token', self.tahoma.token)
+                    self.tahoma.register_listener()
+                    filtered_devices = self.tahoma.get_devices()
+                except Exception as retry_e:
+                    Domoticz.Error("Failed to get devices after token regeneration: " + str(retry_e))
+                    self.enabled = False
+                    return False
+            else:
+                Domoticz.Error("Failed to get devices: authentication failure")
+                self.enabled = False
+                return False
+        except exceptions.TahomaException as e:
+            Domoticz.Error("Failed to get devices: " + str(e))
+            self.enabled = False
+            return False
 
         self.create_devices(filtered_devices)
 
