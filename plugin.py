@@ -126,6 +126,8 @@ from tahoma_local import SomfyBox
 import utils
 import urllib.request
 
+_CONNECTION_DEVICE_ID = "connection_indicator"
+
 class BasePlugin:
     def __init__(self):
         self.enabled = False
@@ -165,6 +167,7 @@ class BasePlugin:
         self.temp_interval_end = time.time()
 
         self.connected = None  # None = onbekend, True = verbonden, False = fout
+        self._last_connected_time = None
         self._temp_log_active = False
         self._sun_refreshed_today = None  # type: Optional[datetime.date]  # Track which date we last refreshed
 
@@ -288,12 +291,39 @@ class BasePlugin:
             return False
 
         # --- DEVICES OPHALEN ---
-        filtered_devices = self.tahoma.get_devices()
+        try:
+            filtered_devices = self.tahoma.get_devices()
+        except exceptions.AuthenticationFailure:
+            if self.local:
+                Domoticz.Log("Stored token rejected (401), regenerating token...")
+                try:
+                    self.tahoma.generate_token(pin)
+                    self.tahoma.activate_token(pin, self.tahoma.token)
+                    setConfigItem('token', self.tahoma.token)
+                    self.tahoma.register_listener()
+                    filtered_devices = self.tahoma.get_devices()
+                except Exception as retry_e:
+                    Domoticz.Error("Failed to get devices after token regeneration: " + str(retry_e))
+                    self.enabled = False
+                    return False
+            else:
+                Domoticz.Error("Failed to get devices: authentication failure")
+                self.enabled = False
+                return False
+        except exceptions.TahomaException as e:
+            Domoticz.Error("Failed to get devices: " + str(e))
+            self.enabled = False
+            return False
 
         self.create_devices(filtered_devices)
 
+        self.create_connection_device()
+
         # --- STATUS UPDATEN ---
         self.update_devices_status(utils.filter_states(filtered_devices))
+
+        self._last_connected_time = datetime.datetime.now()
+        self.update_connection_device(True)
 
         return True
 
@@ -566,6 +596,8 @@ class BasePlugin:
                 if self.connected is False:
                     Domoticz.Log("Connection restored")
                 self.connected = True
+                self._last_connected_time = datetime.datetime.now()
+                self.update_connection_device(True)
 
             except Exception as e:
                 msg = str(e).lower()
@@ -580,6 +612,7 @@ class BasePlugin:
 
                 if self.connected is True or self.connected is None:
                     Domoticz.Error(f"{short} (box not reachable)")
+                    self.update_connection_device(False)
                 self.connected = False
                 filtered_devices = None
 
@@ -747,6 +780,38 @@ class BasePlugin:
 
         logging.debug("create_devices: finished create devices")
         return len(filtered_devices), created_devices
+
+    def create_connection_device(self):
+        if _CONNECTION_DEVICE_ID not in Devices:
+            Domoticz.Device(DeviceID=_CONNECTION_DEVICE_ID)
+            Domoticz.Unit(
+                Name="Somfy Connection Status",
+                Unit=1,
+                Type=243,
+                Subtype=22,
+                DeviceID=_CONNECTION_DEVICE_ID,
+                Used=1
+            ).Create()
+            Domoticz.Log("Connection indicator device created")
+            logging.info("Connection indicator device created")
+
+    def update_connection_device(self, connected):
+        if _CONNECTION_DEVICE_ID not in Devices:
+            return
+        conn_type = "Local" if self.local else "Web"
+        if connected:
+            nValue = 1
+            sValue = f"Connected \u2014 {conn_type} API"
+        else:
+            last_seen = self._last_connected_time.strftime("%H:%M") if self._last_connected_time else "unknown"
+            nValue = 4
+            sValue = f"Disconnected \u2014 last seen: {last_seen}"
+        unit = Devices[_CONNECTION_DEVICE_ID].Units[1]
+        if unit.nValue != nValue or unit.sValue != sValue:
+            unit.nValue = nValue
+            unit.sValue = sValue
+            unit.Update()
+            logging.info(f"Connection device updated: {sValue}")
 
     def load_config_txt(self, log=False):
         config_path = os.path.join(os.path.dirname(__file__), "config.txt")
