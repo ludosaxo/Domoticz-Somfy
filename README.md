@@ -21,7 +21,6 @@ Supported devices:
 - Windows
 - Venetian blinds (positions + slats control)
 - Luminance sensor
-- **Connection indicator** (alert device showing connected/disconnected status)
 
 ## ⚠️ Important Notes
 ### Version 3.x
