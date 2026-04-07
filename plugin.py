@@ -171,6 +171,7 @@ class BasePlugin:
         self._last_error = ""
         self._temp_log_active = False
         self._sun_refreshed_today = None  # type: Optional[datetime.date]  # Track which date we last refreshed
+        self._gateway_info = {}
 
     def onStart(self):
         """
@@ -317,6 +318,20 @@ class BasePlugin:
             return False
 
         self.create_devices(filtered_devices)
+
+        # --- GATEWAY INFO OPHALEN (alleen local) ---
+        if self.local:
+            try:
+                gateways = self.tahoma.get_gateways()
+                self._gateway_info = utils.parse_gateway_info(gateways)
+                Domoticz.Log(
+                    "Gateway: {type_label} (id={gateway_id}) | Status: {connectivity} | "
+                    "FW: {protocol_version} | Mode: {mode}".format(**self._gateway_info)
+                )
+                logging.debug("Gateway info: " + str(self._gateway_info))
+            except Exception as e:
+                Domoticz.Error("Failed to get gateway info: " + str(e))
+                logging.error("Failed to get gateway info: " + str(e))
 
         self.create_connection_device()
 
@@ -803,9 +818,14 @@ class BasePlugin:
             return
         conn_type = "Local" if self.local else "Web"
         if connected:
-            last_poll = self._last_connected_time.strftime("%H:%M:%S") if self._last_connected_time else "unknown"
             nValue = 1
-            sValue = f"Connected \u2014 {conn_type} API | Last poll: {last_poll}"
+            gw = self._gateway_info
+            type_label = gw.get("type_label", "")
+            protocol = gw.get("protocol_version", "")
+            status = gw.get("connectivity", "")
+            line1 = f"Connect - {conn_type} API | {type_label}" if type_label else f"Connect - {conn_type} API"
+            line2 = f"FW : {protocol} | Status: {status}" if protocol or status else ""
+            sValue = f"{line1}\n{line2}" if line2 else line1
         else:
             error = self._last_error if self._last_error else "unknown"
             nValue = 4
