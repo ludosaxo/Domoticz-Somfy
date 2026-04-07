@@ -326,7 +326,7 @@ class BasePlugin:
                 self._gateway_info = utils.parse_gateway_info(gateways)
                 Domoticz.Log(
                     "Gateway: {type_label} (id={gateway_id}) | Status: {connectivity} | "
-                    "Protocol: {protocol_version} | Mode: {mode}".format(**self._gateway_info)
+                    "FW: {protocol_version} | Mode: {mode}".format(**self._gateway_info)
                 )
                 logging.debug("Gateway info: " + str(self._gateway_info))
             except Exception as e:
@@ -824,7 +824,7 @@ class BasePlugin:
             protocol = gw.get("protocol_version", "")
             status = gw.get("connectivity", "")
             line1 = f"Connect - {conn_type} API | {type_label}" if type_label else f"Connect - {conn_type} API"
-            line2 = f"FW : Protocol: {protocol} | Status: {status}" if protocol or status else ""
+            line2 = f"FW : {protocol} | Status: {status}" if protocol or status else ""
             sValue = f"{line1}\n{line2}" if line2 else line1
         else:
             error = self._last_error if self._last_error else "unknown"
