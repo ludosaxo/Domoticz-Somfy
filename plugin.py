@@ -263,10 +263,12 @@ class BasePlugin:
             self.tahoma = SomfyBox(pin, port)
             self.local       = True
             self.local_ip_mode = False
+            Domoticz.Log(f"Local PIN connection configured: {pin}.local:{port}")
         else:
             self.tahoma = tahoma.Tahoma()
             self.local       = False
             self.local_ip_mode = False
+            Domoticz.Log("Web connection configured (via Somfy cloud)")
 
         try:
             self.tahoma.tahoma_login(str(Parameters.get("Username")), str(Parameters.get("Password")))
