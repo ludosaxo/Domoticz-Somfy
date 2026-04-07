@@ -867,7 +867,12 @@ class BasePlugin:
     def update_connection_device(self, connected):
         if _CONNECTION_DEVICE_ID not in Devices:
             return
-        conn_type = "Local" if self.local else "Web"
+        if self.local_ip_mode:
+            conn_type = "Local IP"
+        elif self.local:
+            conn_type = "Local PIN"
+        else:
+            conn_type = "Web"
         if connected:
             nValue = 1
             gw = self._gateway_info
