@@ -44,12 +44,6 @@
         <br/>The first number is for day refresh polling (in seconds), the second is for night refresh polling (in seconds).</td>
     </tr>
     <tr>
-        <td>Night Mode</td>
-        <td>When should the night mode start?
-        <br/>Enter two numbers separated by a semicolon (;).
-        <br/>The first number is the time (in minutes) before sunrise, and the second number is the time after sunset.</td>
-    </tr>
-    <tr>
         <td>Temp polling interval</td>
         <td>How often must the devices be polled?
         <br/>Enter two numbers separated by a semicolon (;)</td>
@@ -57,14 +51,20 @@
     <tr>
         <td>Connection</td>
         <td>Choose how to interact with the Somfy/Tahoma/Connexoon box:
-        <br/>Web API: via Somfy web server (requires continuous internet access)
-        <br/>Local API: connect directly to the box (default)
+        <br/>Web: via Somfy web server (requires continuous internet access)
+        <br/>Local PIN: connect directly to the box using the Gateway PIN (requires DNS or /etc/hosts entry for &lt;PIN&gt;.local)
+        <br/>Local IP: connect directly to the box using an IP address (no DNS required)
         <br/>Somfy is depreciating the Web access, so it is better to use the local API</td>
     </tr>
     <tr>
         <td>Address</td>
-        <td>Gateway PIN of the Portnumber Tahoma box
-        <br/>Don't forget to set your DNS setting with you IP linked to the PIN number </td>
+        <td>Gateway PIN of the Tahoma box, e.g. 1234-1234-1234.
+        <br/>Used for all connection modes to generate and activate the local API token via the Somfy web API.</td>
+    </tr>
+    <tr>
+        <td>Local IP Address</td>
+        <td>Only used in Local IP mode. Enter the IP address of the Tahoma box, e.g. 192.168.1.100.
+        <br/>Leave empty when using Web or Local PIN mode.</td>
     </tr>
     <tr>
         <td>Port</td>
@@ -85,16 +85,17 @@
         <param field="Username" label="Username" width="200px" required="true" default=""/>
         <param field="Password" label="Password" width="200px" required="true" default="" password="true"/>
         <param field="Mode2" label="Refresh interval" width="100px" default="30;900"/>
-        <param field="Mode3" label="Night Mode" width="100px" default="30;60"/>
         <param field="Mode5" label="Temp refresh interval" width="200px" default="15;120"/>
-        <param field="Mode4" label="Connection" width="100px">
+        <param field="Mode4" label="Connection" width="150px">
             <description><br/>Somfy is depreciating the Web access, so it is better to use the local API</description>
             <options>
                 <option label="Web" value="Web"/>
-                <option label="Local" value="Local" default="true"/>
+                <option label="Local PIN" value="Local" default="true"/>
+                <option label="Local IP" value="LocalIP"/>
             </options>
         </param>
-        <param field="Address" label="Gateway PIN" width="150px" required="true" default="1234-1234-1234"/>
+        <param field="Address" label="Gateway PIN" width="175px" required="true" default="1234-1234-1234"/>
+        <param field="Mode3" label="Local IP Address" width="175px" default=""/>
         <param field="Port" label="Portnumber Tahoma box" width="100px" required="true" default="8443"/>
         <param field="Mode1" label="Reset token" width="100px">            
             <options>
@@ -125,6 +126,7 @@ import math
 from tahoma_local import SomfyBox
 import utils
 import urllib.request
+import ipaddress
 
 _CONNECTION_DEVICE_ID = "connection_indicator"
 
@@ -138,6 +140,7 @@ class BasePlugin:
         self.actions_serialized = []
         self.log_filename = "somfy.log"
         self.local = False
+        self.local_ip_mode = False  # True when Mode4 == "LocalIP"
 
         # Device / mode tracking
         self._last_mode = None
@@ -213,17 +216,6 @@ class BasePlugin:
             self.nightInterval = 900
             Domoticz.Error(f"Failed to parse Mode2 for intervals, using defaults: {e}")
 
-        # --- Sunrise / Sunset delays (Mode3) ---
-        try:
-            sr_delay_str, ss_delay_str = Parameters.get("Mode3", "30;60").split(";")
-            self.sunriseDelay = int(sr_delay_str.strip())
-            self.sunsetDelay  = int(ss_delay_str.strip())
-            Domoticz.Log(f"Sunrise / Sunset delays : {self.sunriseDelay}m and {self.sunsetDelay}m")
-        except Exception as e:
-            self.sunriseDelay = 30
-            self.sunsetDelay  = 60
-            Domoticz.Error(f"Failed to parse Mode3 for sunrise/sunset delays, using defaults: {e}")
-
         # --- TEMP_DELAY / TEMP_TIME from Mode5 ---
         try:
             delay_str, time_str = Parameters.get("Mode5", "10;60").split(";")
@@ -248,15 +240,35 @@ class BasePlugin:
         self.enabled = True
 
         # --- Connect to Tahoma/Connexoon box ---
-        pin  = Parameters.get("Address")
-        port = int(Parameters.get("Port", 8443))
+        pin     = Parameters.get("Address", "").strip()
+        mode3   = Parameters.get("Mode3", "").strip()
+        port    = int(Parameters.get("Port", 8443))
+        mode4   = Parameters.get("Mode4", "Local")
 
-        if Parameters.get("Mode4") == "Local":
+        if mode4 == "LocalIP":
+            # Mode3 holds the IP address in Local IP mode
+            if not mode3:
+                Domoticz.Error("Local IP mode: no IP address set in 'Local IP Address' field. Plugin cannot start.")
+                return False
+            try:
+                ipaddress.ip_address(mode3)
+            except ValueError:
+                Domoticz.Error(f"Invalid IP address in 'Local IP Address' field: '{mode3}'. Plugin cannot start.")
+                return False
+            self.tahoma = SomfyBox(None, port, ip=mode3)
+            self.local       = True
+            self.local_ip_mode = True
+            Domoticz.Log(f"Local IP connection configured: {mode3}:{port}")
+        elif mode4 == "Local":
             self.tahoma = SomfyBox(pin, port)
-            self.local  = True
+            self.local       = True
+            self.local_ip_mode = False
+            Domoticz.Log(f"Local PIN connection configured: {pin}.local:{port}")
         else:
             self.tahoma = tahoma.Tahoma()
-            self.local  = False
+            self.local       = False
+            self.local_ip_mode = False
+            Domoticz.Log("Web connection configured (via Somfy cloud)")
 
         try:
             self.tahoma.tahoma_login(str(Parameters.get("Username")), str(Parameters.get("Password")))
@@ -264,6 +276,7 @@ class BasePlugin:
             Domoticz.Error("Failed to login: " + str(exp))
             return False
 
+        # pin (Address) is used by setup_and_sync_devices for token management
         self.setup_and_sync_devices(pin)
 
     def setup_and_sync_devices(self, pin):
@@ -276,14 +289,34 @@ class BasePlugin:
             logging.debug("check if token stored in configuration")
             confToken = getConfigItem('token', '0')
 
-            if confToken == '0' or Parameters["Mode1"] == "True":
-                logging.debug("no token found, generate a new one")
-                self.tahoma.generate_token(pin)
-                self.tahoma.activate_token(pin, self.tahoma.token)
-                setConfigItem('token', self.tahoma.token)
+            if self.local_ip_mode:
+                # In Local IP mode the PIN (Address field) is still available for token generation via web API.
+                if confToken == '0' or Parameters["Mode1"] == "True":
+                    if not pin or pin == "1234-1234-1234":
+                        Domoticz.Error(
+                            "Local IP mode: no stored token and no valid Gateway PIN in Address field. "
+                            "Please enter the Gateway PIN in the Address field so a token can be generated."
+                        )
+                        self.enabled = False
+                        return False
+                    logging.debug("no token found (LocalIP mode), generating a new one using PIN")
+                    self.tahoma.generate_token(pin)
+                    self.tahoma.activate_token(pin, self.tahoma.token)
+                    setConfigItem('token', self.tahoma.token)
+                    setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                else:
+                    logging.debug("found token in configuration (LocalIP mode): " + str(confToken))
+                    self.tahoma.token = confToken
             else:
-                logging.debug("found token in configuration: " + str(confToken))
-                self.tahoma.token = confToken
+                if confToken == '0' or Parameters["Mode1"] == "True":
+                    logging.debug("no token found, generate a new one")
+                    self.tahoma.generate_token(pin)
+                    self.tahoma.activate_token(pin, self.tahoma.token)
+                    setConfigItem('token', self.tahoma.token)
+                    setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                else:
+                    logging.debug("found token in configuration: " + str(confToken))
+                    self.tahoma.token = confToken
 
         try:
             self.tahoma.register_listener()
@@ -297,17 +330,39 @@ class BasePlugin:
             filtered_devices = self.tahoma.get_devices()
         except exceptions.AuthenticationFailure:
             if self.local:
-                Domoticz.Log("Stored token rejected (401), regenerating token...")
-                try:
-                    self.tahoma.generate_token(pin)
-                    self.tahoma.activate_token(pin, self.tahoma.token)
-                    setConfigItem('token', self.tahoma.token)
-                    self.tahoma.register_listener()
-                    filtered_devices = self.tahoma.get_devices()
-                except Exception as retry_e:
-                    Domoticz.Error("Failed to get devices after token regeneration: " + str(retry_e))
-                    self.enabled = False
-                    return False
+                if self.local_ip_mode:
+                    if not pin or pin == "1234-1234-1234":
+                        Domoticz.Error(
+                            "Local IP mode: stored token rejected and no valid Gateway PIN in Address field. "
+                            "Please enter the Gateway PIN in Address and set Reset token to True."
+                        )
+                        self.enabled = False
+                        return False
+                    Domoticz.Log("Local IP mode: stored token rejected (401), regenerating token using PIN...")
+                    try:
+                        self.tahoma.generate_token(pin)
+                        self.tahoma.activate_token(pin, self.tahoma.token)
+                        setConfigItem('token', self.tahoma.token)
+                        setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                        self.tahoma.register_listener()
+                        filtered_devices = self.tahoma.get_devices()
+                    except Exception as retry_e:
+                        Domoticz.Error("Failed to get devices after token regeneration: " + str(retry_e))
+                        self.enabled = False
+                        return False
+                else:
+                    Domoticz.Log("Stored token rejected (401), regenerating token...")
+                    try:
+                        self.tahoma.generate_token(pin)
+                        self.tahoma.activate_token(pin, self.tahoma.token)
+                        setConfigItem('token', self.tahoma.token)
+                        setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                        self.tahoma.register_listener()
+                        filtered_devices = self.tahoma.get_devices()
+                    except Exception as retry_e:
+                        Domoticz.Error("Failed to get devices after token regeneration: " + str(retry_e))
+                        self.enabled = False
+                        return False
             else:
                 Domoticz.Error("Failed to get devices: authentication failure")
                 self.enabled = False
@@ -816,7 +871,12 @@ class BasePlugin:
     def update_connection_device(self, connected):
         if _CONNECTION_DEVICE_ID not in Devices:
             return
-        conn_type = "Local" if self.local else "Web"
+        if self.local_ip_mode:
+            conn_type = "Local IP"
+        elif self.local:
+            conn_type = "Local PIN"
+        else:
+            conn_type = "Web"
         if connected:
             nValue = 1
             gw = self._gateway_info
@@ -825,7 +885,13 @@ class BasePlugin:
             status = gw.get("connectivity", "")
             line1 = f"Connect - {conn_type} API | {type_label}" if type_label else f"Connect - {conn_type} API"
             line2 = f"FW : {protocol} | Status: {status}" if protocol or status else ""
-            sValue = f"{line1}\n{line2}" if line2 else line1
+            if self.local:
+                token_created = getConfigItem('token_created', '')
+                line3 = f"Token aangemaakt: {token_created}" if token_created else "Token: aanwezig"
+            else:
+                line3 = ""
+            parts = [p for p in [line1, line2, line3] if p]
+            sValue = "\n".join(parts)
         else:
             error = self._last_error if self._last_error else "unknown"
             nValue = 4
@@ -861,10 +927,21 @@ class BasePlugin:
                         self.domoticz_port = val
                     elif key == "SUN_REFRESH_TIME":
                         self.sun_refresh_time = val  # verwacht formaat "HH:MM"
+                    elif key == "SUNRISE_DELAY":
+                        try:
+                            self.sunriseDelay = int(val)
+                        except ValueError:
+                            Domoticz.Error(f"Invalid SUNRISE_DELAY value in config.txt: {val}")
+                    elif key == "SUNSET_DELAY":
+                        try:
+                            self.sunsetDelay = int(val)
+                        except ValueError:
+                            Domoticz.Error(f"Invalid SUNSET_DELAY value in config.txt: {val}")
 
             Domoticz.Log(
                 f"Config.txt loaded. Domoticz @ {self.domoticz_host}:{self.domoticz_port} | "
-                f"Sunset and Sunrise refresh time: {self.sun_refresh_time}"
+                f"Sunset and Sunrise refresh time: {self.sun_refresh_time} | "
+                f"Sunrise delay: {self.sunriseDelay}m, Sunset delay: {self.sunsetDelay}m"
             )
         except Exception as e:
             Domoticz.Error(f"Fout in load_config_txt: {str(e)}")

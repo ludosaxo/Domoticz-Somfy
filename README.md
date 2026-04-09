@@ -97,9 +97,15 @@ sudo apt-get install python3-requests
 
 Activating this mode will enable a local API on your TaHoma and Connexoon box. Be aware that Somfy will not be able to provide support for usage of this API.
 
-2. Your Somfy box needs the traceable in your network.
-To do this, you need to link your Somfy Box PIN to the Somfy Box IP address.
-Add your Somfy Box PIN number to the IP in your local network in etc/hosts or in your DNS Server
+2. Your Somfy box needs to be reachable in your network.
+
+**Option A – Direct IP (no DNS needed):**  
+Select **Local IP** in the **Connection** field (`Mode4`), fill in the Gateway PIN in the **Gateway PIN** field (`Address`), and fill in the IP address of your Somfy box in the **Local IP Address** field (`Mode3`), for example `192.168.1.100`.  
+The plugin will automatically generate and store a token on first start using the PIN and the Somfy web API.
+
+**Option B – PIN with DNS / hosts entry:**  
+Select **Local PIN** in the **Connection** field (`Mode4`). Enter the Gateway PIN in the **Gateway PIN** field (`Address`).  
+You also need to link your Somfy Box PIN to the Somfy Box IP address in your network:
 ```
 192.168.1.1 1234-1234-1234.local
 ```
@@ -129,11 +135,11 @@ Add the hardware to your Domoticz system and fill in the required fields
 |--------------|--------------|
 | 👤 Username | Somfy account login |
 | 🔑 Password | Somfy account password |
-| 🌅 Sunrise/Sunset Delay (`Mode3`) | Delay in minutes for sunrise/sunset calculations. in minutes bedore sunrise and after sunset |
 | 🔄 Refresh Interval (`Mode2`) | `day;night` polling interval (in seconds) |
-| ⌛ Temp polling interval (`Mode5`) |  refresh time and duration |
-| 🌐 Connection (`Mode4`) | Local (recommended) or Web |
-| 📍 Gateway PIN | Your Somfy box PIN |
+| ⌛ Temp polling interval (`Mode5`) | refresh time and duration |
+| 🌐 Connection (`Mode4`) | **Web** – via Somfy web server; **Local PIN** – direct connection using Gateway PIN (DNS required); **Local IP** – direct connection using IP address (no DNS required) |
+| 📍 Gateway PIN (`Address`) | Gateway PIN of your Somfy box (e.g. `1234-1234-1234`). Used for all connection modes to generate/activate the local API token. |
+| 🌐 Local IP Address (`Mode3`) | Only for **Local IP** mode: IP address of your Somfy box (e.g. `192.168.1.100`). Leave empty for Web or Local PIN mode. |
 | 🔁 Reset token (`Mode1`) | `False` by default; set `True` if token errors occur |
 | 🔢 Portnumber | Default `8443` |
 | 🐞 Debug logging (`Mode6`) | `False` by default; `True` for verbose logs |
@@ -163,9 +169,18 @@ Invalid or missing values will fall back to default settings
 ```
 DOMOTICZ_HOST=127.0.0.1
 DOMOTICZ_PORT=8080
+SUN_REFRESH_TIME=02:15
+# SUNRISE_DELAY=30
+# SUNSET_DELAY=60
 
 ```
-Remove the # for the setting you want to use in config.txt
+| Key | Description | Default |
+|-----|-------------|---------|
+| `DOMOTICZ_HOST` | IP address of your Domoticz server | `127.0.0.1` |
+| `DOMOTICZ_PORT` | Port of your Domoticz server | `8080` |
+| `SUN_REFRESH_TIME` | Time of day to refresh sunrise/sunset data (HH:MM) | `02:00` |
+| `SUNRISE_DELAY` | Minutes before sunrise when day mode starts | `30` |
+| `SUNSET_DELAY` | Minutes after sunset when night mode starts | `60` |
 
 ---
 ### 🔄 Slider Status in Domoticz
