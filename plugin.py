@@ -304,9 +304,11 @@ class BasePlugin:
                     self.tahoma.activate_token(pin, self.tahoma.token)
                     setConfigItem('token', self.tahoma.token)
                     setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                    Domoticz.Log("Token aangemaakt (LocalIP mode)")
                 else:
                     logging.debug("found token in configuration (LocalIP mode): " + str(confToken))
                     self.tahoma.token = confToken
+                    Domoticz.Log("Token aanwezig (LocalIP mode), geladen uit configuratie")
             else:
                 if confToken == '0' or Parameters["Mode1"] == "True":
                     logging.debug("no token found, generate a new one")
@@ -314,9 +316,11 @@ class BasePlugin:
                     self.tahoma.activate_token(pin, self.tahoma.token)
                     setConfigItem('token', self.tahoma.token)
                     setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                    Domoticz.Log("Token aangemaakt")
                 else:
                     logging.debug("found token in configuration: " + str(confToken))
                     self.tahoma.token = confToken
+                    Domoticz.Log("Token aanwezig, geladen uit configuratie")
 
         try:
             self.tahoma.register_listener()
@@ -344,6 +348,7 @@ class BasePlugin:
                         self.tahoma.activate_token(pin, self.tahoma.token)
                         setConfigItem('token', self.tahoma.token)
                         setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                        Domoticz.Log("Token ververst (LocalIP mode)")
                         self.tahoma.register_listener()
                         filtered_devices = self.tahoma.get_devices()
                     except Exception as retry_e:
@@ -357,6 +362,7 @@ class BasePlugin:
                         self.tahoma.activate_token(pin, self.tahoma.token)
                         setConfigItem('token', self.tahoma.token)
                         setConfigItem('token_created', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                        Domoticz.Log("Token ververst")
                         self.tahoma.register_listener()
                         filtered_devices = self.tahoma.get_devices()
                     except Exception as retry_e:
