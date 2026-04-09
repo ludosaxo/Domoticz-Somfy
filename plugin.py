@@ -931,13 +931,13 @@ class BasePlugin:
 
             if log:
                 Domoticz.Log("Config.txt loaded.")
-                Domoticz.Log(
-                    f"Domoticz @ {self.domoticz_host}:{self.domoticz_port} | "
-                    f"Polling intervals Day / Night: {self.dayInterval}s / {self.nightInterval}s | "
-                    f"Temp: {self.temp_delay}s delay for {self.temp_time}s | "
-                    f"Sunset and Sunrise refresh time: {self.sun_refresh_time} | "
-                    f"Sunrise delay: {self.sunriseDelay}m, Sunset delay: {self.sunsetDelay}m"
-                )
+                # Domoticz.Log(
+                #     f"Domoticz @ {self.domoticz_host}:{self.domoticz_port} | "
+                #     f"Polling intervals Day / Night: {self.dayInterval}s / {self.nightInterval}s | "
+                #     f"Temp: {self.temp_delay}s delay for {self.temp_time}s | "
+                #     f"Sunset and Sunrise refresh time: {self.sun_refresh_time} | "
+                #     f"Sunrise delay: {self.sunriseDelay}m, Sunset delay: {self.sunsetDelay}m"
+                # )
         except Exception as e:
             Domoticz.Error(f"Error in load_config_txt: {str(e)}")
 
