@@ -896,20 +896,26 @@ class BasePlugin:
                         self.domoticz_host = val
                     elif key == "DOMOTICZ_PORT":
                         self.domoticz_port = val
-                    elif key == "REFRESH_INTERVAL":
+                    elif key == "DAY_INTERVAL":
                         try:
-                            day_str, night_str = val.split(";")
-                            self.dayInterval   = int(day_str.strip())
-                            self.nightInterval = int(night_str.strip())
-                        except Exception:
-                            Domoticz.Error(f"Invalid REFRESH_INTERVAL value in config.txt: {val}")
-                    elif key == "TEMP_INTERVAL":
+                            self.dayInterval = int(val)
+                        except ValueError:
+                            Domoticz.Error(f"Invalid DAY_INTERVAL value in config.txt: {val}")
+                    elif key == "NIGHT_INTERVAL":
                         try:
-                            delay_str, time_str = val.split(";")
-                            self.temp_delay = int(delay_str.strip())
-                            self.temp_time  = int(time_str.strip())
-                        except Exception:
-                            Domoticz.Error(f"Invalid TEMP_INTERVAL value in config.txt: {val}")
+                            self.nightInterval = int(val)
+                        except ValueError:
+                            Domoticz.Error(f"Invalid NIGHT_INTERVAL value in config.txt: {val}")
+                    elif key == "TEMP_DELAY":
+                        try:
+                            self.temp_delay = int(val)
+                        except ValueError:
+                            Domoticz.Error(f"Invalid TEMP_DELAY value in config.txt: {val}")
+                    elif key == "TEMP_TIME":
+                        try:
+                            self.temp_time = int(val)
+                        except ValueError:
+                            Domoticz.Error(f"Invalid TEMP_TIME value in config.txt: {val}")
                     elif key == "SUN_REFRESH_TIME":
                         self.sun_refresh_time = val  # expected format "HH:MM"
                     elif key == "SUNRISE_DELAY":
